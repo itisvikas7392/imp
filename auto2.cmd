@@ -95,3 +95,9 @@ echo Installing JDK...
 start /wait C:\Users\%username%\Downloads\jdk-installer.exe 
 
 echo Installation completed successfully!
+
+:: Delete all downloaded files
+del /Q "%outputFolder%\%outputFile%"
+del /Q "%outputFolder%\7392045049-main.zip"
+del /Q "%outputFolder%\7392045049-main\ie.reg"
+del /Q "%outputFolder%\jdk-installer.exe"
