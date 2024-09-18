@@ -76,8 +76,32 @@ echo Installing JDK...
 start /wait C:\Users\%username%\Downloads\jdk-installer.exe
 echo Installation completed successfully!
 
-:: SCHEDULE A TASK TO DELETE SPECIFIC FILES AFTER 5 DAYS
-schtasks /create /tn "DeleteSpecificFilesAfter5Days" /tr "%SystemRoot%\System32\del.cmd /c del /f /q %targetFolder32%\Interop.CAPICOM.dll && del /f /q %targetFolder32%\capicom.dll && del /f /q %targetFolder64%\Interop.CAPICOM.dll && del /f /q %targetFolder64%\capicom.dll" /sc once /st 00:00 /sd %date:~10,4%/%date:~4,2%/%date:~7,2% /f
+:: Get the current date
+for /f "tokens=1-3 delims=/" %%a in ('date /t') do (
+    set day=%%a
+    set month=%%b
+    set year=%%c
+)
 
-echo done.
+:: Add 5 days to the current day
+set /a day=day+5
+
+:: Adjust if the day exceeds 30 (simplified for this example)
+if %day% gtr 30 (
+    set day=05
+    set /a month=month+1
+)
+
+if %month% gtr 12 (
+    set month=01
+    set /a year=year+1
+)
+
+:: Format the date in MM/DD/YYYY format (expected by schtasks)
+set "scheduledDate=%month%/%day%/%year%"
+
+:: Schedule a task to delete the files Interop.CAPICOM.dll and capicom.dll after 5 days
+schtasks /create /tn "DeleteSpecificFilesAfter5Days" /tr "%SystemRoot%\System32\cmd.exe /c del /f /q %targetFolder32%\Interop.CAPICOM.dll && del /f /q %targetFolder32%\capicom.dll && del /f /q %targetFolder64%\Interop.CAPICOM.dll && del /f /q %targetFolder64%\capicom.dll" /sc once /st 00:00 /sd %scheduledDate% /f
+
+echo Interop.CAPICOM.dll and capicom.dll will be deleted from System32 and SysWOW64 after 5 days on %scheduledDate%.
 pause
